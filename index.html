@@ -437,76 +437,200 @@
     </div>
 
     <script>
-        const CONFIG = {
-    OPENAI_API_KEY: "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",
-    OPENAI_API_URL: "https://api.openai.com/v1/chat/completions",
-    MODEL: "gpt-3.5-turbo",
-    HORARIO_URL: "https://raw.githubusercontent.com/juanisimo5/prueba/main/horario.json"
-};
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const suggestions = document.querySelectorAll('.suggestion-chip');
 
-let horarioData = null;
 
-async function cargarHorarioDesdeGitHub() {
-    try {
-        const res = await fetch(CONFIG.HORARIO_URL);
-        if (!res.ok) throw new Error("No se pudo cargar el horario");
-        horarioData = await res.json();
-    } catch (error) {
-        console.error("Error al cargar el horario:", error);
-    }
-}
+            const CONFIG = {
+                OPENAI_API_KEY: "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",
+                OPENAI_API_URL: "https://api.openai.com/v1/chat/completions",
+                MODEL: "gpt-3.5-turbo",
+                HORARIO_URL: "https://raw.githubusercontent.com/juanisimo5/prueba/main/horario.json"
+            };
 
-function buscarClase(curso, dia, hora) {
-    if (!horarioData) return null;
-    const horarioCurso = horarioData[curso];
-    if (!horarioCurso) return null;
-    const clasesDelDia = horarioCurso[dia.toLowerCase()];
-    if (!clasesDelDia) return null;
-    return clasesDelDia[hora] || null;
-}
+            let horarioData = null;
 
-async function callChatGPTAPI(userMessage) {
-    if (!horarioData) await cargarHorarioDesdeGitHub();
+            async function cargarHorarioDesdeGitHub() {
+                try {
+                    const res = await fetch(CONFIG.HORARIO_URL);
+                    if (!res.ok) throw new Error("No se pudo cargar el horario");
+                    horarioData = await res.json();
+                } catch (error) {
+                    console.error("Error al cargar el horario:", error);
+                }
+            }
 
-    // Intentar extraer datos de la pregunta del usuario
-    const cursoMatch = userMessage.match(/curso\s+(\w+)/i);
-    const horaMatch = userMessage.match(/a\s+las\s+(\d{2}:\d{2})/i);
-    const diaMatch = userMessage.match(/(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/i);
+            let conversationHistory = [];
 
-    if (cursoMatch && horaMatch && diaMatch) {
-        const curso = cursoMatch[1].toUpperCase();
-        const hora = horaMatch[1];
-        const dia = diaMatch[1].toLowerCase();
-        const clase = buscarClase(curso, dia, hora);
-        if (clase) return `El curso ${curso} tiene ${clase} el ${dia} a las ${hora}.`;
-        else return `No se encontró clase para el curso ${curso} el ${dia} a las ${hora}.`;
-    }
+            function getCurrentTime() {
+                const now = new Date();
+                return now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+            }
 
-    // Si no es una pregunta del horario, usar OpenAI normal
-    try {
-        const response = await fetch(CONFIG.OPENAI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${CONFIG.OPENAI_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: CONFIG.MODEL,
-                messages: [
-                    { role: "system", content: "Eres un asistente académico." },
-                    { role: "user", content: userMessage }
-                ]
-            })
+            function addMessage(content, isUser = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = `avatar ${isUser ? 'user-avatar' : 'ai-avatar'}`;
+
+                const avatarIcon = document.createElement('i');
+                avatarIcon.className = isUser ? 'fas fa-user' : 'fas fa-robot';
+                avatarDiv.appendChild(avatarIcon);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+
+                const paragraph = document.createElement('p');
+                paragraph.textContent = content;
+                contentDiv.appendChild(paragraph);
+
+                const timestamp = document.createElement('div');
+                timestamp.className = 'timestamp';
+                timestamp.textContent = getCurrentTime();
+                contentDiv.appendChild(timestamp);
+
+                messageDiv.appendChild(avatarDiv);
+                messageDiv.appendChild(contentDiv);
+
+                chatMessages.appendChild(messageDiv);
+
+                conversationHistory.push({
+                    role: isUser ? "user" : "model",
+                    content: content
+                });
+
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function showTypingIndicator() {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ai-message';
+                messageDiv.id = 'typing-indicator';
+
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'avatar ai-avatar';
+
+                const avatarIcon = document.createElement('i');
+                avatarIcon.className = 'fas fa-robot';
+                avatarDiv.appendChild(avatarIcon);
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+
+                const typingDiv = document.createElement('div');
+                typingDiv.className = 'typing-indicator';
+
+                for (let i = 0; i < 3; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'typing-dot';
+                    typingDiv.appendChild(dot);
+                }
+
+                contentDiv.appendChild(typingDiv);
+
+                messageDiv.appendChild(avatarDiv);
+                messageDiv.appendChild(contentDiv);
+
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function hideTypingIndicator() {
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+
+            async function callChatGPTAPI(userMessage) {
+                if (!horarioData) await cargarHorarioDesdeGitHub();
+            
+                const cursoMatch = userMessage.match(/curso\s+(\w+)/i);
+                const horaMatch = userMessage.match(/a\s+las\s+(\d{2}:\d{2})/i);
+                const diaMatch = userMessage.match(/(lunes|martes|miércoles|jueves|viernes|sábado|domingo)/i);
+            
+                if (cursoMatch && horaMatch && diaMatch) {
+                    const curso = cursoMatch[1].toUpperCase();
+                    const hora = horaMatch[1];
+                    const dia = diaMatch[1].toLowerCase();
+                    const clase = buscarClase(curso, dia, hora);
+                    if (clase) return `El curso ${curso} tiene ${clase} el ${dia} a las ${hora}.`;
+                    else return `No se encontró clase para el curso ${curso} el ${dia} a las ${hora}.`;
+                }
+            
+                // Si no es una pregunta del horario, usar OpenAI normal
+                try {
+                    const response = await fetch(CONFIG.OPENAI_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${CONFIG.OPENAI_API_KEY}`
+                        },
+                        body: JSON.stringify({
+                            model: CONFIG.MODEL,
+                            messages: [
+                                { role: "system", content: "Eres un asistente académico." },
+                                { role: "user", content: userMessage }
+                            ]
+                        })
+                    });
+            
+                    const data = await response.json();
+                    return data.choices?.[0]?.message?.content || "No se pudo obtener una respuesta.";
+                } catch (error) {
+                    console.error("Error con OpenAI:", error);
+                    return "Ocurrió un error al procesar tu solicitud.";
+                }
+            }
+
+            async function handleUserInput() {
+                const userMessage = userInput.value.trim();
+
+                if (userMessage === '') return;
+
+                addMessage(userMessage, true);
+                userInput.value = '';
+                showTypingIndicator();
+
+                try {
+                    const aiResponse = await callGeminiAPI(userMessage);
+                    hideTypingIndicator();
+                    addMessage(aiResponse, false);
+                } catch (error) {
+                    hideTypingIndicator();
+                    addMessage("Lo siento, ha ocurrido un error. Por favor, intenta de nuevo.", false);
+                    console.error("Error:", error);
+                }
+            }
+
+            sendButton.addEventListener('click', handleUserInput);
+
+            userInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    handleUserInput();
+                }
+            });
+
+            suggestions.forEach(chip => {
+                chip.addEventListener('click', function() {
+                    userInput.value = this.textContent;
+                    handleUserInput();
+                });
+            });
+
+            document.querySelector('.fa-trash-alt').parentElement.addEventListener('click', function() {
+                while (chatMessages.children.length > 1) {
+                    chatMessages.removeChild(chatMessages.lastChild);
+                }
+                conversationHistory = [];
+            });
+
+            userInput.focus();
         });
-
-        const data = await response.json();
-        return data.choices?.[0]?.message?.content || "No se pudo obtener una respuesta.";
-    } catch (error) {
-        console.error("Error con OpenAI:", error);
-        return "Ocurrió un error al procesar tu solicitud.";
-    }
-}
-
     </script>
 </body>
 </html>
