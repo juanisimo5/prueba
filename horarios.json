@@ -1,0 +1,10 @@
+{
+  "A1": {
+    "lunes": { "08:00": "Matemáticas", "10:00": "Español" },
+    "martes": { "09:00": "Historia" }
+  },
+  "B2": {
+    "lunes": { "08:00": "Inglés" },
+    "miércoles": { "11:00": "Computación" }
+  }
+}

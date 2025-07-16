@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Asistente de Horarios</title>
+  <style>
+    body { font-family: Arial; margin: 0; background: #f0f0f0; }
+    .chat-container { width: 100%; max-width: 800px; margin: auto; margin-top: 30px; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+    .chat-messages { height: 400px; overflow-y: auto; margin-bottom: 20px; }
+    .message { margin: 10px 0; }
+    .message.user p { background: #6c5ce7; color: white; padding: 10px; border-radius: 10px; max-width: 70%; margin-left: auto; }
+    .message.ai p { background: #f1f2f6; color: black; padding: 10px; border-radius: 10px; max-width: 70%; margin-right: auto; }
+    .input-row { display: flex; gap: 10px; }
+    input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+    button { padding: 10px 20px; background: #6c5ce7; color: white; border: none; border-radius: 5px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h2>📘 Asistente de Horarios</h2>
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="input-row">
+      <input type="text" id="user-input" placeholder="Pregunta por un horario...">
+      <button onclick="handleMessage()">Enviar</button>
+    </div>
+  </div>
+
+  <script>
+    let horarios = {};
+
+    fetch('horarios.json')
+      .then(res => res.json())
+      .then(data => { horarios = data; })
+      .catch(err => console.error("Error cargando horarios:", err));
+
+    function addMessage(text, sender = "user") {
+      const chat = document.getElementById("chat-messages");
+      const div = document.createElement("div");
+      div.className = "message " + sender;
+      div.innerHTML = `<p>${text}</p>`;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    function parseQuestion(msg) {
+      const lower = msg.toLowerCase();
+      let curso, dia, hora;
+
+      for (let c in horarios) {
+        if (lower.includes(c.toLowerCase())) curso = c;
+      }
+
+      const dias = ["lunes", "martes", "miércoles", "jueves", "viernes"];
+      dias.forEach(d => { if (lower.includes(d)) dia = d; });
+
+      const horaMatch = msg.match(/\b\d{1,2}:\d{2}\b/);
+      if (horaMatch) hora = horaMatch[0];
+
+      return { curso, dia, hora };
+    }
+
+    function buscarHorario(curso, dia, hora) {
+      if (!curso || !horarios[curso]) return "No reconozco ese curso.";
+      if (!dia || !horarios[curso][dia]) return `No hay clases registradas para ${curso} el ${dia}.`;
+
+      if (hora) {
+        const clase = horarios[curso][dia][hora];
+        return clase ? `El curso ${curso} tiene ${clase} el ${dia} a las ${hora}.` : `No hay clase registrada a las ${hora} para ${curso} el ${dia}.`;
+      } else {
+        const clases = horarios[curso][dia];
+        let lista = Object.entries(clases).map(([h, m]) => `• ${h}: ${m}`).join("<br>");
+        return `Clases del curso ${curso} el ${dia}:<br>${lista}`;
+      }
+    }
+
+    function handleMessage() {
+      const input = document.getElementById("user-input");
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      addMessage(msg, "user");
+
+      const { curso, dia, hora } = parseQuestion(msg);
+      const respuesta = buscarHorario(curso, dia, hora);
+
+      setTimeout(() => addMessage(respuesta, "ai"), 500);
+      input.value = "";
+    }
+  </script>
+</body>
+</html>
