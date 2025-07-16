@@ -597,7 +597,7 @@
                 showTypingIndicator();
 
                 try {
-                    const aiResponse = await callGeminiAPI(userMessage);
+                    const aiResponse = await callChatGPTAPI(userMessage);
                     hideTypingIndicator();
                     addMessage(aiResponse, false);
                 } catch (error) {
